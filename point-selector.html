@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador de Coordenadas de Imagen</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .image-container {
+            position: relative;
+            margin-top: 20px;
+            border: 2px dashed #ccc;
+            max-width: 100%;
+            overflow: auto;
+        }
+
+        #targetImage {
+            display: block;
+            max-width: 100%;
+        }
+
+        .crosshair {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: rgba(255, 0, 0, 0.5);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .info-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .coordinates-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .coordinates-table th,
+        .coordinates-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .coordinates-table th {
+            background-color: #f0f0f0;
+        }
+
+        .coordinates-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .copy-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        .copy-btn:hover {
+            background-color: #45a049;
+        }
+
+        .highlight {
+            background-color: yellow;
+            padding: 2px;
+        }
+
+        .mode-switch {
+            display: flex;
+            margin-bottom: 15px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .mode-switch button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background-color: transparent;
+            cursor: pointer;
+        }
+
+        .mode-switch button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .instructions {
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .markers-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .marker {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .marker::after {
+            content: attr(data-index);
+            position: absolute;
+            top: -20px;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .nav-button {
+            text-decoration: none;
+            color: #333;
+            font-size: small;
+            text-align: center;
+            padding: .5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Buscador de Coordenadas de Imagen</h1>
+
+    <div class="container">
+        <div class="upload-section">
+            <h2>Subir imagen</h2>
+            <p class="instructions">
+                Sube una imagen y haz clic en cualquier parte para obtener las coordenadas exactas
+                en píxeles y porcentajes. Útil para posicionar elementos en aplicaciones frontend.
+            </p>
+            <input type="file" id="imageUpload" accept="image/*">
+        </div>
+
+        <div class="mode-switch" id="modeSwitch">
+            <a href="/image-area-selector.html" class="nav-button">Modo dibujo</a>
+            <button class="active" data-mode="draw">Modo puntos</button>
+        </div>
+
+        <div class="image-container" id="imageContainer">
+            <img id="targetImage" alt="Imagen para analizar" style="display: none;">
+            <div class="crosshair" id="crosshair" style="display: none;"></div>
+            <div class="markers-container" id="markersContainer"></div>
+        </div>
+
+        <div class="info-panel" id="infoPanel" style="display: none;">
+            <h3>Información de coordenadas</h3>
+            <p>Posición actual del cursor: <span id="currentPosition">-</span></p>
+            <p>Dimensiones de la imagen: <span id="imageDimensions">-</span></p>
+
+            <h3>Puntos guardados</h3>
+            <table class="coordinates-table" id="coordinatesTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>X (px)</th>
+                        <th>Y (px)</th>
+                        <th>X (%)</th>
+                        <th>Y (%)</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="coordinatesBody">
+                    <!-- Los puntos se añadirán dinámicamente aquí -->
+                </tbody>
+            </table>
+
+            <div style="margin-top: 15px;">
+                <button id="copyAllBtn" class="copy-btn">Copiar todos los puntos</button>
+                <button id="clearAllBtn" class="copy-btn" style="background-color: #f44336;">Borrar todos</button>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <h3>Código CSS de ejemplo</h3>
+                <pre id="cssSample" style="background-color: #eee; padding: 10px; overflow-x: auto;"></pre>
+                <button id="copyCssBtn" class="copy-btn">Copiar CSS</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const imageUpload = document.getElementById('imageUpload');
+            const targetImage = document.getElementById('targetImage');
+            const imageContainer = document.getElementById('imageContainer');
+            const crosshair = document.getElementById('crosshair');
+            const infoPanel = document.getElementById('infoPanel');
+            const currentPosition = document.getElementById('currentPosition');
+            const imageDimensions = document.getElementById('imageDimensions');
+            const coordinatesBody = document.getElementById('coordinatesBody');
+            const copyAllBtn = document.getElementById('copyAllBtn');
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            const cssSample = document.getElementById('cssSample');
+            const copyCssBtn = document.getElementById('copyCssBtn');
+            const markersContainer = document.getElementById('markersContainer');
+
+            let points = [];
+
+            // Cargar imagen
+            imageUpload.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        targetImage.src = event.target.result;
+                        targetImage.style.display = 'block';
+                        crosshair.style.display = 'block';
+                        infoPanel.style.display = 'block';
+                        points = [];
+                        updatePointsTable();
+
+                        // Esperar a que la imagen cargue para obtener sus dimensiones
+                        targetImage.onload = function () {
+                            imageDimensions.textContent = `${targetImage.naturalWidth}px × ${targetImage.naturalHeight}px`;
+                        };
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Seguir el cursor
+            imageContainer.addEventListener('mousemove', function (e) {
+                if (targetImage.style.display === 'none') return;
+
+                const rect = targetImage.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // Asegurar que estamos dentro de la imagen
+                if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+                    crosshair.style.left = x + 'px';
+                    crosshair.style.top = y + 'px';
+                    crosshair.style.display = 'block';
+
+                    // Calcular porcentajes
+                    const xPercent = (x / rect.width * 100).toFixed(2);
+                    const yPercent = (y / rect.height * 100).toFixed(2);
+
+                    currentPosition.innerHTML = `
+                        X: <span class="highlight">${Math.round(x)}px</span> (${xPercent}%), 
+                        Y: <span class="highlight">${Math.round(y)}px</span> (${yPercent}%)
+                    `;
+                } else {
+                    crosshair.style.display = 'none';
+                    currentPosition.textContent = 'Fuera de la imagen';
+                }
+            });
+
+            // Salir de la imagen
+            imageContainer.addEventListener('mouseleave', function () {
+                crosshair.style.display = 'none';
+                currentPosition.textContent = '-';
+            });
+
+            // Capturar coordenadas al hacer clic
+            imageContainer.addEventListener('click', function (e) {
+                if (targetImage.style.display === 'none') return;
+
+                const rect = targetImage.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // Asegurar que estamos dentro de la imagen
+                if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+                    // Calcular coordenadas en la imagen original (no escalada)
+                    const xOriginal = Math.round(x / rect.width * targetImage.naturalWidth);
+                    const yOriginal = Math.round(y / rect.height * targetImage.naturalHeight);
+
+                    // Calcular porcentajes
+                    const xPercent = (x / rect.width * 100).toFixed(2);
+                    const yPercent = (y / rect.height * 100).toFixed(2);
+
+                    // Guardar el punto
+                    points.push({
+                        x: xOriginal,
+                        y: yOriginal,
+                        xPercent: xPercent,
+                        yPercent: yPercent
+                    });
+
+                    // Actualizar la tabla y los marcadores
+                    updatePointsTable();
+                    addMarker(x, y, points.length);
+                }
+            });
+
+            // Añadir un marcador visual
+            function addMarker(x, y, index) {
+                const marker = document.createElement('div');
+                marker.className = 'marker';
+                marker.style.left = x + 'px';
+                marker.style.top = y + 'px';
+                marker.setAttribute('data-index', index);
+                markersContainer.appendChild(marker);
+            }
+
+            // Actualizar tabla de puntos
+            function updatePointsTable() {
+                coordinatesBody.innerHTML = '';
+
+                points.forEach((point, index) => {
+                    const row = document.createElement('tr');
+
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${point.x}px</td>
+                        <td>${point.y}px</td>
+                        <td>${point.xPercent}%</td>
+                        <td>${point.yPercent}%</td>
+                        <td>
+                            <button class="copy-btn" data-index="${index}">Copiar</button>
+                            <button class="copy-btn" style="background-color: #f44336;" data-delete="${index}">Eliminar</button>
+                        </td>
+                    `;
+
+                    coordinatesBody.appendChild(row);
+                });
+
+                // Actualizar ejemplo CSS
+                updateCssExample();
+
+                // Limpiar marcadores y recrearlos
+                markersContainer.innerHTML = '';
+                points.forEach((point, index) => {
+                    const rect = targetImage.getBoundingClientRect();
+                    const x = (point.x / targetImage.naturalWidth) * rect.width;
+                    const y = (point.y / targetImage.naturalHeight) * rect.height;
+                    addMarker(x, y, index + 1);
+                });
+            }
+
+            // Actualizar ejemplo de CSS
+            function updateCssExample() {
+                if (points.length === 0) {
+                    cssSample.textContent = '/* Haz clic en la imagen para generar código CSS */';
+                    return;
+                }
+
+                let css = `.image-container {
+    position: relative;
+    width: 100%;
+}
+
+.image-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+`;
+
+                points.forEach((point, index) => {
+                    css += `.overlay-element-${index + 1} {
+    position: absolute;
+    top: ${point.yPercent}%;
+    left: ${point.xPercent}%;
+    transform: translate(-50%, -50%);
+    /* Otros estilos que necesites */
+}
+
+`;
+                });
+
+                cssSample.textContent = css;
+            }
+
+            // Manejar clics en la tabla para copiar o eliminar
+            coordinatesBody.addEventListener('click', function (e) {
+                const copyBtn = e.target.closest('[data-index]');
+                const deleteBtn = e.target.closest('[data-delete]');
+
+                if (copyBtn) {
+                    const index = parseInt(copyBtn.getAttribute('data-index'));
+                    const point = points[index];
+                    const text = `X: ${point.x}px (${point.xPercent}%), Y: ${point.y}px (${point.yPercent}%)`;
+
+                    navigator.clipboard.writeText(text)
+                        .then(() => {
+                            copyBtn.textContent = '¡Copiado!';
+                            setTimeout(() => { copyBtn.textContent = 'Copiar'; }, 1000);
+                        });
+                }
+
+                if (deleteBtn) {
+                    const index = parseInt(deleteBtn.getAttribute('data-delete'));
+                    points.splice(index, 1);
+                    updatePointsTable();
+                }
+            });
+
+            // Copiar todos los puntos
+            copyAllBtn.addEventListener('click', function () {
+                if (points.length === 0) return;
+
+                let text = 'Coordenadas:\n\n';
+                points.forEach((point, index) => {
+                    text += `Punto ${index + 1}: X: ${point.x}px (${point.xPercent}%), Y: ${point.y}px (${point.yPercent}%)\n`;
+                });
+
+                navigator.clipboard.writeText(text)
+                    .then(() => {
+                        copyAllBtn.textContent = '¡Copiado!';
+                        setTimeout(() => { copyAllBtn.textContent = 'Copiar todos los puntos'; }, 1000);
+                    });
+            });
+
+            // Borrar todos los puntos
+            clearAllBtn.addEventListener('click', function () {
+                if (confirm('¿Estás seguro de que quieres borrar todos los puntos?')) {
+                    points = [];
+                    updatePointsTable();
+                }
+            });
+
+            // Copiar CSS
+            copyCssBtn.addEventListener('click', function () {
+                navigator.clipboard.writeText(cssSample.textContent)
+                    .then(() => {
+                        copyCssBtn.textContent = '¡Copiado!';
+                        setTimeout(() => { copyCssBtn.textContent = 'Copiar CSS'; }, 1000);
+                    });
+            });
+        });
+    </script>
+</body>
+
+</html>

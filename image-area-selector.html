@@ -203,6 +203,14 @@
         .tab-content.active {
             display: block;
         }
+
+        .nav-button {
+            text-decoration: none;
+            color: #333;
+            font-size: small;
+            text-align: center;
+            padding: .5rem;
+        }
     </style>
 </head>
 
@@ -220,8 +228,8 @@
         </div>
 
         <div class="mode-switch" id="modeSwitch">
-            <button class="active" data-mode="draw">Modo Dibujo</button>
-            <button data-mode="select">Modo Selección</button>
+            <button class="active" data-mode="draw">Modo dibujo</button>
+            <a href="/point-selector.html" class="nav-button">Modo puntos</a>
         </div>
 
         <div class="image-container" id="imageContainer">
