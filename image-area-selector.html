@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selector de Áreas en Imagen</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .image-container {
+            position: relative;
+            margin-top: 20px;
+            border: 2px dashed #ccc;
+            max-width: 100%;
+            overflow: auto;
+            cursor: crosshair;
+        }
+
+        #targetImage {
+            display: block;
+            max-width: 100%;
+        }
+
+        .selection-box {
+            position: absolute;
+            border: 2px dashed rgba(255, 0, 0, 0.7);
+            background-color: rgba(255, 0, 0, 0.2);
+            pointer-events: none;
+        }
+
+        .area-box {
+            position: absolute;
+            border: 2px solid rgba(0, 128, 255, 0.7);
+            background-color: rgba(0, 128, 255, 0.2);
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        .area-label {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .info-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .coordinates-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .coordinates-table th,
+        .coordinates-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .coordinates-table th {
+            background-color: #f0f0f0;
+        }
+
+        .coordinates-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .copy-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        .copy-btn:hover {
+            background-color: #45a049;
+        }
+
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+
+        .button-group {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .mode-switch {
+            display: flex;
+            margin-bottom: 15px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .mode-switch button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background-color: transparent;
+            cursor: pointer;
+        }
+
+        .mode-switch button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .instructions {
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        #cssOutput,
+        #htmlOutput {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .tab-container {
+            margin-top: 20px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .tab-btn {
+            padding: 10px 15px;
+            background-color: #f0f0f0;
+            border: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Selector de Áreas en Imagen</h1>
+
+    <div class="container">
+        <div class="upload-section">
+            <h2>Subir imagen</h2>
+            <p class="instructions">
+                Sube una imagen y dibuja áreas rectangulares donde quieras posicionar tu contenido.
+                Haz clic y arrastra para dibujar un área.
+            </p>
+            <input type="file" id="imageUpload" accept="image/*">
+        </div>
+
+        <div class="mode-switch" id="modeSwitch">
+            <button class="active" data-mode="draw">Modo Dibujo</button>
+            <button data-mode="select">Modo Selección</button>
+        </div>
+
+        <div class="image-container" id="imageContainer">
+            <img id="targetImage" alt="Imagen para analizar" style="display: none;">
+            <div id="selectionBox" class="selection-box" style="display: none;"></div>
+        </div>
+
+        <div class="info-panel" id="infoPanel" style="display: none;">
+            <h3>Áreas seleccionadas</h3>
+            <p id="imageDimensions">Dimensiones de la imagen: -</p>
+
+            <table class="coordinates-table" id="coordinatesTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>X (%)</th>
+                        <th>Y (%)</th>
+                        <th>Ancho (%)</th>
+                        <th>Alto (%)</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="coordinatesBody">
+                    <!-- Las áreas se añadirán dinámicamente aquí -->
+                </tbody>
+            </table>
+
+            <div class="button-group">
+                <button id="clearAllBtn" class="delete-btn">Borrar todas las áreas</button>
+                <button id="copyAllBtn" class="copy-btn">Copiar todas las áreas</button>
+            </div>
+
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="css">CSS</button>
+                    <button class="tab-btn" data-tab="html">HTML</button>
+                </div>
+
+                <div id="cssTab" class="tab-content active">
+                    <h3>Código CSS</h3>
+                    <p>Usa este código CSS para posicionar tus elementos:</p>
+                    <div id="cssOutput"></div>
+                    <button id="copyCssBtn" class="copy-btn">Copiar CSS</button>
+                </div>
+
+                <div id="htmlTab" class="tab-content">
+                    <h3>Estructura HTML</h3>
+                    <p>Ejemplo de estructura HTML para usar con el CSS:</p>
+                    <div id="htmlOutput"></div>
+                    <button id="copyHtmlBtn" class="copy-btn">Copiar HTML</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Elementos DOM
+            const imageUpload = document.getElementById('imageUpload');
+            const targetImage = document.getElementById('targetImage');
+            const imageContainer = document.getElementById('imageContainer');
+            const selectionBox = document.getElementById('selectionBox');
+            const infoPanel = document.getElementById('infoPanel');
+            const imageDimensions = document.getElementById('imageDimensions');
+            const coordinatesBody = document.getElementById('coordinatesBody');
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            const copyAllBtn = document.getElementById('copyAllBtn');
+            const cssOutput = document.getElementById('cssOutput');
+            const htmlOutput = document.getElementById('htmlOutput');
+            const copyCssBtn = document.getElementById('copyCssBtn');
+            const copyHtmlBtn = document.getElementById('copyHtmlBtn');
+            const modeSwitch = document.getElementById('modeSwitch');
+            const tabButtons = document.querySelectorAll('.tab-btn');
+
+            // Variables
+            let areas = [];
+            let isDrawing = false;
+            let startX, startY;
+            let currentMode = 'draw';
+            let selectedArea = null;
+
+            // Cargar imagen
+            imageUpload.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        targetImage.src = event.target.result;
+                        targetImage.style.display = 'block';
+                        infoPanel.style.display = 'block';
+                        areas = [];
+                        updateAreasTable();
+                        removeAllAreaBoxes();
+
+                        // Actualizar dimensiones cuando cargue la imagen
+                        targetImage.onload = function () {
+                            imageDimensions.textContent = `Dimensiones de la imagen: ${targetImage.naturalWidth}px × ${targetImage.naturalHeight}px`;
+                        };
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Control de pestañas
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    // Desactivar todas las pestañas
+                    document.querySelectorAll('.tab-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+
+                    // Activar la pestaña seleccionada
+                    this.classList.add('active');
+                    const tabId = this.getAttribute('data-tab') + 'Tab';
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+
+            // Cambio de modo
+            modeSwitch.addEventListener('click', function (e) {
+                if (e.target.tagName === 'BUTTON') {
+                    // Desactivar todos los botones
+                    document.querySelectorAll('#modeSwitch button').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+
+                    // Activar el botón seleccionado
+                    e.target.classList.add('active');
+
+                    // Cambiar modo
+                    currentMode = e.target.getAttribute('data-mode');
+
+                    // Actualizar cursor
+                    if (currentMode === 'draw') {
+                        imageContainer.style.cursor = 'crosshair';
+                    } else {
+                        imageContainer.style.cursor = 'default';
+                    }
+                }
+            });
+
+            imageContainer.addEventListener('click', function (e) {
+                const rect = targetImage.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                // Verificar que el click está dentro de la imagen
+                if (clickX < 0 || clickX > rect.width || clickY < 0 || clickY > rect.height) return;
+
+                if (!isDrawing) {
+                    // Primer click: Inicia el dibujo
+                    isDrawing = true;
+                    startX = clickX;
+                    startY = clickY;
+
+                    selectionBox.style.left = startX + 'px';
+                    selectionBox.style.top = startY + 'px';
+                    selectionBox.style.width = '0';
+                    selectionBox.style.height = '0';
+                    selectionBox.style.display = 'block';
+
+                    console.log("Inicio de área en:", startX, startY);
+                } else {
+                    // Segundo click: Finaliza el dibujo
+                    isDrawing = false;
+                    const width = Math.abs(clickX - startX);
+                    const height = Math.abs(clickY - startY);
+                    const left = Math.min(startX, clickX);
+                    const top = Math.min(startY, clickY);
+
+                    if (width > 5 && height > 5) {
+                        // Calcular porcentajes
+                        const xPercent = (left / rect.width * 100).toFixed(2);
+                        const yPercent = (top / rect.height * 100).toFixed(2);
+                        const widthPercent = (width / rect.width * 100).toFixed(2);
+                        const heightPercent = (height / rect.height * 100).toFixed(2);
+
+                        // Guardar el área
+                        const newArea = {
+                            x: xPercent,
+                            y: yPercent,
+                            width: widthPercent,
+                            height: heightPercent,
+                            pixelX: Math.round(left / rect.width * targetImage.naturalWidth),
+                            pixelY: Math.round(top / rect.height * targetImage.naturalHeight),
+                            pixelWidth: Math.round(width / rect.width * targetImage.naturalWidth),
+                            pixelHeight: Math.round(height / rect.height * targetImage.naturalHeight)
+                        };
+
+                        console.log("Área guardada:", newArea);
+                        areas.push(newArea);
+                        updateAreasTable();
+                        createAreaBox(newArea, areas.length - 1);
+                    }
+
+                    // Ocultar caja de selección
+                    selectionBox.style.display = 'none';
+                }
+            });
+
+            imageContainer.addEventListener('mousemove', function (e) {
+                console.log("Se mueve el mouse");
+                if (!isDrawing) return;
+
+                const rect = targetImage.getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+
+                // Calcular posición y dimensiones
+                const width = Math.abs(currentX - startX);
+                const height = Math.abs(currentY - startY);
+                const left = Math.min(startX, currentX);
+                const top = Math.min(startY, currentY);
+
+                // Actualizar caja de selección
+                selectionBox.style.left = left + 'px';
+                selectionBox.style.top = top + 'px';
+                selectionBox.style.width = width + 'px';
+                selectionBox.style.height = height + 'px';
+
+                selectionBox.offsetHeight;
+            });
+
+            // Añadir caja visual para un área
+            function createAreaBox(area, index) {
+                const areaBox = document.createElement('div');
+                areaBox.className = 'area-box';
+                areaBox.setAttribute('data-index', index);
+
+                const label = document.createElement('div');
+                label.className = 'area-label';
+                label.textContent = index + 1;
+
+                areaBox.appendChild(label);
+
+                updateAreaBoxPosition(areaBox, area);
+
+                areaBox.addEventListener('click', function (e) {
+                    if (currentMode === 'select') {
+                        e.stopPropagation();
+                        const idx = parseInt(this.getAttribute('data-index'));
+                        selectArea(idx);
+                    }
+                });
+
+                imageContainer.appendChild(areaBox);
+            }
+
+            // Actualizar posición de una caja de área
+            function updateAreaBoxPosition(areaBox, area) {
+                const rect = targetImage.getBoundingClientRect();
+
+                const left = parseFloat(area.x) * rect.width / 100;
+                const top = parseFloat(area.y) * rect.height / 100;
+                const width = parseFloat(area.width) * rect.width / 100;
+                const height = parseFloat(area.height) * rect.height / 100;
+
+                areaBox.style.left = left + 'px';
+                areaBox.style.top = top + 'px';
+                areaBox.style.width = width + 'px';
+                areaBox.style.height = height + 'px';
+            }
+
+            // Seleccionar un área
+            function selectArea(index) {
+                // Deseleccionar todas las áreas
+                document.querySelectorAll('.area-box').forEach(box => {
+                    box.style.borderColor = 'rgba(0, 128, 255, 0.7)';
+                    box.style.backgroundColor = 'rgba(0, 128, 255, 0.2)';
+                });
+
+                // Seleccionar el área actual
+                const areaBox = document.querySelector(`.area-box[data-index="${index}"]`);
+                if (areaBox) {
+                    areaBox.style.borderColor = 'rgba(255, 165, 0, 0.9)';
+                    areaBox.style.backgroundColor = 'rgba(255, 165, 0, 0.3)';
+                    selectedArea = index;
+                }
+            }
+
+            // Actualizar todas las cajas de áreas (por ejemplo, al redimensionar)
+            function updateAllAreaBoxes() {
+                // Eliminar todas las cajas existentes
+                removeAllAreaBoxes();
+
+                // Crear nuevas cajas
+                areas.forEach((area, index) => {
+                    createAreaBox(area, index);
+                });
+            }
+
+            // Eliminar todas las cajas de áreas
+            function removeAllAreaBoxes() {
+                document.querySelectorAll('.area-box').forEach(box => {
+                    box.remove();
+                });
+            }
+
+            // Actualizar tabla de áreas
+            function updateAreasTable() {
+                coordinatesBody.innerHTML = '';
+
+                areas.forEach((area, index) => {
+                    const row = document.createElement('tr');
+
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${area.x}%</td>
+                        <td>${area.y}%</td>
+                        <td>${area.width}%</td>
+                        <td>${area.height}%</td>
+                        <td>
+                            <button class="copy-btn" data-copy="${index}">Copiar</button>
+                            <button class="delete-btn" data-delete="${index}">Eliminar</button>
+                        </td>
+                    `;
+
+                    coordinatesBody.appendChild(row);
+                });
+
+                // Actualizar códigos de ejemplo
+                updateCssExample();
+                updateHtmlExample();
+            }
+
+            // Actualizar ejemplo de CSS
+            function updateCssExample() {
+                if (areas.length === 0) {
+                    cssOutput.textContent = '/* Dibuja áreas en la imagen para generar código CSS */';
+                    return;
+                }
+
+                let css = `.image-container {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+}
+
+.image-container img {
+    width: 100%;
+    height: 100%;
+}
+
+`;
+
+                areas.forEach((area, index) => {
+                    css += `.overlay-area-${index + 1} {
+    position: absolute;
+    top: ${area.y}%;
+    left: ${area.x}%;
+    width: ${area.width}%;
+    height: ${area.height}%;
+    /* Otros estilos que necesites */
+}
+
+`;
+                });
+
+                cssOutput.textContent = css;
+            }
+
+            // Actualizar ejemplo de HTML
+            function updateHtmlExample() {
+                if (areas.length === 0) {
+                    htmlOutput.textContent = '<!-- Dibuja áreas en la imagen para generar código HTML -->';
+                    return;
+                }
+
+                let html = `<div class="image-container">
+    <img src="tu-imagen.jpg" alt="Imagen de fondo">
+    
+    <!-- Áreas superpuestas -->`;
+
+                areas.forEach((area, index) => {
+                    html += `
+    <div class="overlay-area-${index + 1}">
+        <!-- Contenido para el área ${index + 1} -->
+        Contenido del área ${index + 1}
+    </div>`;
+                });
+
+                html += `
+</div>`;
+
+                htmlOutput.textContent = html;
+            }
+
+            // Manejar clics en la tabla para copiar o eliminar
+            coordinatesBody.addEventListener('click', function (e) {
+                const copyBtn = e.target.closest('[data-copy]');
+                const deleteBtn = e.target.closest('[data-delete]');
+
+                if (copyBtn) {
+                    const index = parseInt(copyBtn.getAttribute('data-copy'));
+                    const area = areas[index];
+                    const text = `Área ${index + 1}:\nX: ${area.x}%, Y: ${area.y}%\nAncho: ${area.width}%, Alto: ${area.height}%\nPixels: X=${area.pixelX}px, Y=${area.pixelY}px, Ancho=${area.pixelWidth}px, Alto=${area.pixelHeight}px`;
+
+                    navigator.clipboard.writeText(text)
+                        .then(() => {
+                            copyBtn.textContent = '¡Copiado!';
+                            setTimeout(() => { copyBtn.textContent = 'Copiar'; }, 1000);
+                        });
+                }
+
+                if (deleteBtn) {
+                    const index = parseInt(deleteBtn.getAttribute('data-delete'));
+                    areas.splice(index, 1);
+                    updateAreasTable();
+                    updateAllAreaBoxes();
+                }
+            });
+
+            // Copiar todos los datos
+            copyAllBtn.addEventListener('click', function () {
+                if (areas.length === 0) return;
+
+                let text = 'Áreas seleccionadas:\n\n';
+                areas.forEach((area, index) => {
+                    text += `Área ${index + 1}:\nX: ${area.x}%, Y: ${area.y}%\nAncho: ${area.width}%, Alto: ${area.height}%\nPixels: X=${area.pixelX}px, Y=${area.pixelY}px, Ancho=${area.pixelWidth}px, Alto=${area.pixelHeight}px\n\n`;
+                });
+
+                navigator.clipboard.writeText(text)
+                    .then(() => {
+                        copyAllBtn.textContent = '¡Copiado!';
+                        setTimeout(() => { copyAllBtn.textContent = 'Copiar todas las áreas'; }, 1000);
+                    });
+            });
+
+            // Borrar todas las áreas
+            clearAllBtn.addEventListener('click', function () {
+                if (confirm('¿Estás seguro de que quieres borrar todas las áreas?')) {
+                    areas = [];
+                    updateAreasTable();
+                    removeAllAreaBoxes();
+                }
+            });
+
+            // Copiar CSS
+            copyCssBtn.addEventListener('click', function () {
+                navigator.clipboard.writeText(cssOutput.textContent)
+                    .then(() => {
+                        copyCssBtn.textContent = '¡Copiado!';
+                        setTimeout(() => { copyCssBtn.textContent = 'Copiar CSS'; }, 1000);
+                    });
+            });
+
+            // Copiar HTML
+            copyHtmlBtn.addEventListener('click', function () {
+                navigator.clipboard.writeText(htmlOutput.textContent)
+                    .then(() => {
+                        copyHtmlBtn.textContent = '¡Copiado!';
+                        setTimeout(() => { copyHtmlBtn.textContent = 'Copiar HTML'; }, 1000);
+                    });
+            });
+
+            // Actualizar posición de las áreas cuando la ventana cambia de tamaño
+            window.addEventListener('resize', function () {
+                if (targetImage.style.display !== 'none') {
+                    updateAllAreaBoxes();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
